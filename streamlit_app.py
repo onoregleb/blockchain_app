@@ -17,7 +17,7 @@ from src.fetch_wallet import run_fetch_and_process
 
 
 default_session_state = {
-    'data_source': None, # 'csv' или 'api'
+    'data_source': None,
     'data_loaded': False,
     'fetch_error': None,
     'fetch_warnings': None,
@@ -51,7 +51,6 @@ data_source_option = st.sidebar.radio(
     key='data_source_choice'
 )
 
-# Обновляем состояние при выборе
 if data_source_option == 'Загрузить CSV':
     st.session_state.data_source = 'csv'
 elif data_source_option == 'Собрать через API Etherscan':
@@ -66,7 +65,6 @@ if st.session_state.data_source == 'csv':
             with st.spinner("Загрузка и предобработка данных из CSV..."):
                 data = load_data(uploaded_file)
                 st.session_state.original_data = data
-                # Предобработка сразу после загрузки
                 scaled_features, processed_data = preprocess_data(data)
                 st.session_state.scaled_features = scaled_features
                 st.session_state.processed_data = processed_data
@@ -95,9 +93,8 @@ elif st.session_state.data_source == 'api':
 
             Без ключа API сбор данных через Etherscan невозможен.
         """)
-        st.stop() # Останавливаем выполнение приложения, так как ключ необходим
+        st.stop()
 
-    # st.success("Ключ API Etherscan успешно загружен из секретов.")
 
     # Поля ввода для API
     api_address = st.text_input(
@@ -151,22 +148,20 @@ elif st.session_state.data_source == 'api':
                     if not df_result.empty:
                         st.success(f"Сбор данных завершен! Получено {len(df_result)} записей.")
                         st.session_state.original_data = df_result
-                        st.session_state.fetch_warnings = warnings_list # Сохраняем предупреждения
+                        st.session_state.fetch_warnings = warnings_list
 
-                        # Запускаем предобработку сразу после сбора
                         with st.spinner("Предобработка собранных данных..."):
                             scaled_features, processed_data = preprocess_data(df_result)
                             st.session_state.scaled_features = scaled_features
                             st.session_state.processed_data = processed_data
-                            st.session_state.data_loaded = True # Устанавливаем флаг успешной загрузки/сбора
+                            st.session_state.data_loaded = True
                         st.success("Предобработка данных завершена.")
-                        st.rerun() # Перезапускаем для отображения EDA и следующих шагов
+                        st.rerun()
 
                     else:
                         st.warning("Сбор данных завершен, но не найдено кошельков или транзакций для анализа за указанный период.")
                         st.session_state.data_loaded = False # Данных нет
                 else:
-                    # Если run_fetch_and_process вернула None, значит была критическая ошибка
                     st.error("Произошла критическая ошибка во время сбора данных. Проверьте консоль или логи для деталей.")
                     st.session_state.fetch_error = "Критическая ошибка сбора данных."
                     st.session_state.data_loaded = False
@@ -177,14 +172,10 @@ elif st.session_state.data_source == 'api':
                 st.error(f"Произошла ошибка во время выполнения сбора или обработки данных: {str(e)}")
                 st.session_state.fetch_error = str(e)
                 st.session_state.data_loaded = False
-                # Можно добавить вывод traceback для отладки
-                # st.exception(e)
 
 elif not st.session_state.data_source:
     st.info("Пожалуйста, выберите источник данных в боковой панели слева.")
 
-
-# === Последующие шаги анализа (выполняются только если data_loaded is True) ===
 
 if st.session_state.data_loaded and st.session_state.original_data is not None:
 
@@ -192,21 +183,19 @@ if st.session_state.data_loaded and st.session_state.original_data is not None:
     if st.session_state.data_source == 'api' and st.session_state.fetch_warnings:
         st.warning("**Предупреждение о неполных данных:**")
         warning_message = "Из-за достижения лимита Etherscan в 10,000 транзакций для следующих дат, данные и результаты анализа могут быть неполными:\n"
-        for dt in sorted(list(set(st.session_state.fetch_warnings))): # Уникальные даты
+        for dt in sorted(list(set(st.session_state.fetch_warnings))):
             warning_message += f"- {dt.strftime('%Y-%m-%d')}\n"
         st.markdown(warning_message)
 
 
-    # === Секция 2: EDA ===
     st.markdown("---")
     st.markdown("### 2. Исследовательский анализ данных (EDA)")
-    data = st.session_state.original_data # Используем загруженные/собранные данные
+    data = st.session_state.original_data
 
     st.subheader("Первые 5 строк данных")
     st.dataframe(data.head())
 
     st.subheader("Основная статистика")
-    # Исключаем нечисловые колонки перед describe
     numeric_cols = data.select_dtypes(include=np.number).columns.tolist()
     if numeric_cols:
         st.dataframe(data[numeric_cols].describe())
@@ -216,7 +205,6 @@ if st.session_state.data_loaded and st.session_state.original_data is not None:
 
     st.subheader("Распределения данных")
     try:
-        # Передаем только числовые колонки в generate_eda_plots
         eda_plots = generate_eda_plots(data[numeric_cols])
         st.subheader("Распределения исходных числовых данных")
         st.pyplot(eda_plots['original_plots'])
@@ -227,7 +215,6 @@ if st.session_state.data_loaded and st.session_state.original_data is not None:
         st.info("Возможно, в данных отсутствуют необходимые числовые колонки.")
 
 
-    # === Секция 3: Определение кластеров ===
     st.markdown("---")
     st.markdown("### 3. Определение оптимального числа кластеров")
 
@@ -248,7 +235,6 @@ if st.session_state.data_loaded and st.session_state.original_data is not None:
                     st.session_state.cluster_metrics = None
 
         if st.session_state.cluster_metrics:
-            # Отображение графиков метрик
             col1, col2 = st.columns(2)
             with col1:
                 st.pyplot(plot_elbow_method(
@@ -272,15 +258,12 @@ if st.session_state.data_loaded and st.session_state.original_data is not None:
                 silhouette = st.session_state.cluster_metrics['silhouette']
                 davies_bouldin = st.session_state.cluster_metrics['davies_bouldin']
 
-                # Проверка на достаточность данных для расчета локтя
                 elbow_k_index = -1
                 if len(inertia) >= 3:
-                     # Ищем индекс максимального второго дифференциала (изгиба)
                      diff2 = np.diff(inertia, 2)
-                     # +2 к индексу, т.к. diff убирает точки и индексация с 0
                      elbow_k_index = np.argmax(diff2) + 2
-                else: # Если k_range слишком мал для второго дифференциала
-                     elbow_k_index = 0 # По умолчанию берем первый возможный k
+                else:
+                     elbow_k_index = 0
 
                 silhouette_k_index = np.argmax(silhouette)
                 db_k_index = np.argmin(davies_bouldin)
@@ -299,13 +282,11 @@ if st.session_state.data_loaded and st.session_state.original_data is not None:
                  st.warning(f"Не удалось рассчитать рекомендуемые k: {e}")
 
 
-            # Выбор k пользователем и запуск кластеризации
-            recommended_k_default = 4 # Значение по умолчанию, если рекомендации не сработали
+            recommended_k_default = 4
             if st.session_state.cluster_metrics:
                  try:
-                     # Предлагаем k по силуэту как наиболее часто используемый
                      recommended_k_default = k_range[silhouette_k_index]
-                 except: pass # Оставляем 4 если что-то пошло не так
+                 except: pass
 
             selected_k = st.number_input(
                 "Выберите количество кластеров (k) для финальной модели",
@@ -323,22 +304,19 @@ if st.session_state.data_loaded and st.session_state.original_data is not None:
                             st.session_state.scaled_features,
                             selected_k
                         )
-                        # Добавляем метки кластеров к обработанным данным
                         processed_data_copy = st.session_state.processed_data.copy()
                         processed_data_copy['cluster'] = labels
-                        st.session_state.processed_data = processed_data_copy # Обновляем стейт
+                        st.session_state.processed_data = processed_data_copy
 
-                        # Важно: Добавляем метки кластеров и к ОРИГИНАЛЬНЫМ данным для статистики
                         if len(st.session_state.original_data) == len(labels):
                              original_data_copy = st.session_state.original_data.copy()
                              original_data_copy['cluster'] = labels
-                             st.session_state.original_data = original_data_copy # Обновляем стейт
+                             st.session_state.original_data = original_data_copy
                              st.session_state.cluster_performed = True
                              st.success(f"Кластеризация завершена! Найдено кластеров: {selected_k}")
-                             # Сбрасываем описание AI, т.к. кластеры изменились
                              st.session_state.cluster_description = None
-                             st.session_state.displayed_stats = None # Сбрасываем старую статистику
-                             st.rerun() # Обновляем страницу для показа результатов
+                             st.session_state.displayed_stats = None
+                             st.rerun()
                         else:
                             st.error("Ошибка: Несовпадение количества строк между оригинальными данными и результатами кластеризации. Не удалось добавить метки.")
                             st.session_state.cluster_performed = False
@@ -351,12 +329,10 @@ if st.session_state.data_loaded and st.session_state.original_data is not None:
          st.info("Данные еще не загружены или не обработаны. Загрузите CSV или соберите данные через API.")
 
 
-    # === Секция 4: Результаты кластеризации ===
     if st.session_state.cluster_performed and 'cluster' in st.session_state.original_data.columns:
         st.markdown("---")
         st.markdown("### 4. Результаты кластеризации")
 
-        # Визуализация PCA
         st.subheader("Визуализация кластеров (PCA)")
         try:
             st.pyplot(plot_pca_clusters(
@@ -368,18 +344,14 @@ if st.session_state.data_loaded and st.session_state.original_data is not None:
 
         st.subheader("Статистика по кластерам (на основе оригинальных данных)")
         try:
-            # Выбираем только числовые колонки из оригинальных данных (ИСКЛЮЧАЯ 'cluster')
             original_numeric_cols = st.session_state.original_data.select_dtypes(include=np.number).columns.tolist()
             if 'cluster' in original_numeric_cols:
                 original_numeric_cols.remove('cluster')
 
-            if original_numeric_cols: # Если есть числовые колонки для анализа
-                 # Группируем оригинальные данные по кластерам и считаем describe
+            if original_numeric_cols:
                  stats = st.session_state.original_data.groupby('cluster')[original_numeric_cols].describe()
 
-                 # Оставляем только основные метрики для отображения
                  stats_to_display = ['count', 'mean', 'std', 'min', '25%', '50%', '75%', 'max']
-                 # Используем MultiIndex для выбора нужных уровней статистики
                  filtered_stats = stats.loc[:, pd.IndexSlice[:, stats_to_display]]
 
                  st.session_state.displayed_stats = filtered_stats # Сохраняем для GigaChat
@@ -393,19 +365,15 @@ if st.session_state.data_loaded and st.session_state.original_data is not None:
             st.error(f"Ошибка при расчете статистики по кластерам: {e}")
             st.session_state.displayed_stats = None
 
-        # Распределение адресов по кластерам
         st.subheader("Распределение записей по кластерам")
         st.bar_chart(st.session_state.original_data['cluster'].value_counts())
 
-        # === Секция 5: Описание кластеров GigaChat ===
         st.markdown("---")
         st.markdown("### 5. Описание кластеров с помощью AI (GigaChat)")
 
         if st.session_state.displayed_stats is not None and not st.session_state.displayed_stats.empty:
-            # Подготовка статистики для AI (например, только mean, std, min, max)
             ai_stats = None
             try:
-                # Выбираем подмножество статистик для AI
                 stats_for_ai = ['mean', 'std', 'min', 'max']
                 ai_stats = st.session_state.displayed_stats.loc[:, pd.IndexSlice[:, stats_for_ai]]
                 stats_markdown_text = ai_stats.to_markdown() # Конвертируем в Markdown
@@ -414,7 +382,6 @@ if st.session_state.data_loaded and st.session_state.original_data is not None:
                 ai_stats = None
 
             if ai_stats is not None:
-                # Кнопка для запроса описания
                 if st.button("Получить описание кластеров от GigaChat", key="get_gigachat_desc"):
                     # Получение ключа GigaChat из секретов
                     auth_basic_value = st.secrets.get('GIGACHAT_AUTH_BASIC_VALUE')
@@ -451,24 +418,17 @@ if st.session_state.data_loaded and st.session_state.original_data is not None:
         elif st.session_state.cluster_performed: # Кластеризация была, но статистика не рассчиталась
             st.warning("Статистика по кластерам не была рассчитана или пуста. Невозможно получить описание от AI.")
 
-        # Отображение полученного описания
         if st.session_state.cluster_description:
             st.markdown("#### Описание кластеров (сгенерировано GigaChat):")
-            st.markdown(st.session_state.cluster_description) # Используем markdown для форматирования ответа AI
+            st.markdown(st.session_state.cluster_description)
 
 
-    # === Секция 6: Сброс ===
     st.markdown("---")
     if st.button("Сбросить и начать заново", key="reset_all"):
-        # Очистка всего состояния сессии
-        keys_to_clear = list(st.session_state.keys()) # Получаем список всех ключей
+        keys_to_clear = list(st.session_state.keys())
         for key in keys_to_clear:
              del st.session_state[key]
-        # Можно добавить инициализацию с дефолтными значениями, если необходимо
-        # for key, default in default_session_state.items():
-        #      st.session_state[key] = default
         st.rerun()
-
 
 # Сообщение, если данные еще не загружены/собраны в основной части
 elif st.session_state.data_source == 'api' and not st.session_state.data_loaded and not st.session_state.fetch_error:

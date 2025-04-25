@@ -311,9 +311,9 @@ if st.session_state.data_loaded and st.session_state.original_data is not None:
                         processed_data_copy['cluster'] = labels_one_based
                         st.session_state.processed_data = processed_data_copy
 
-                        if len(st.session_state.original_data) == len(labels):
+                        if len(st.session_state.original_data) == len(labels_zero_based):
                              original_data_copy = st.session_state.original_data.copy()
-                             original_data_copy['cluster'] = labels
+                             original_data_copy['cluster'] = labels_one_based
                              st.session_state.original_data = original_data_copy
                              st.session_state.cluster_performed = True
                              st.success(f"Кластеризация завершена! Найдено кластеров: {selected_k}")

@@ -300,12 +300,15 @@ if st.session_state.data_loaded and st.session_state.original_data is not None:
             if st.button("Запустить кластеризацию", key="run_clustering_btn"):
                  with st.spinner(f"Выполнение KMeans с k={selected_k}..."):
                     try:
-                        labels = perform_clustering(
+                        labels_zero_based = perform_clustering(
                             st.session_state.scaled_features,
                             selected_k
                         )
+
+                        labels_one_based = labels_zero_based + 1
+
                         processed_data_copy = st.session_state.processed_data.copy()
-                        processed_data_copy['cluster'] = labels
+                        processed_data_copy['cluster'] = labels_one_based
                         st.session_state.processed_data = processed_data_copy
 
                         if len(st.session_state.original_data) == len(labels):

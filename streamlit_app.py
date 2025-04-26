@@ -409,7 +409,6 @@ if st.session_state.data_loaded and st.session_state.original_data is not None:
                             except Exception as e:
                                 st.error(f"Ошибка при взаимодействии с GigaChat API: {e}")
                                 st.session_state.cluster_description = None
-                                # st.exception(e) # Раскомментировать для детальной отладки
 
                     else:
                         st.warning(
@@ -418,7 +417,7 @@ if st.session_state.data_loaded and st.session_state.original_data is not None:
             else:
                 st.warning("Не удалось подготовить статистику для передачи в GigaChat.")
 
-        elif st.session_state.cluster_performed: # Кластеризация была, но статистика не рассчиталась
+        elif st.session_state.cluster_performed:
             st.warning("Статистика по кластерам не была рассчитана или пуста. Невозможно получить описание от AI.")
 
         if st.session_state.cluster_description:
